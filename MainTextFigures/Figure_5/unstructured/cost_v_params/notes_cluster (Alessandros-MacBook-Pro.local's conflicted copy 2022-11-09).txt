@@ -1,0 +1,92 @@
+
+ssh as974@dcc-login.oit.duke.edu
+
+squeue -u as974
+
+clean folder work 
+rm vi /brian_*
+
+python
+
+
+import numpy as np
+import os
+import sys
+path='results/'
+dirListing = os.listdir(path)
+#number_of_files=(len(dirListing))#for J 
+number_of_files=(len(dirListing))-1 # for gs
+
+for idx_species in range(2):
+    if idx_species==0:
+        files=np.arange(0,number_of_files/2,1)
+    if idx_species==1:
+        files=np.arange(number_of_files/2,number_of_files,1)
+    count=0
+    for idx in files:#range(number_of_files):
+        if count==0:
+            results=np.loadtxt(path+'results_%d.txt'%idx);
+        if (count>0):
+            try:
+                results=np.vstack((results,np.loadtxt(path+'results_%d.txt'%idx)));
+            except OSError:
+                print("Could not open/read file:%d"%idx)
+                #sys.exit()
+        count=count+1
+    if idx_species==0:
+        file_name='results_mice.txt'
+    if idx_species==1:
+        file_name='results_monkeys.txt' 
+    f_handle = open(file_name,'w')
+    np.savetxt(f_handle,results,fmt='%.6f', delimiter='\t')
+    f_handle.close()
+
+
+
+
+
+
+########### 
+scp -r find_optimal_param_Fixed_J_and_CVopto as974@dcc-login.oit.duke.edu:
+
+scp -r as974@dcc-login.oit.duke.edu:~/find_optimal_param_Fixed_J_and_CVopto/results find_optimal_param_Fixed_J_and_CVopto/
+
+scp -r as974@dcc-login.oit.duke.edu:~/find_optimal_param_Fixed_J_and_CVopto/results_mice.txt find_optimal_param_Fixed_J_and_CVopto/
+scp -r as974@dcc-login.oit.duke.edu:~/find_optimal_param_Fixed_J_and_CVopto/results_monkeys.txt find_optimal_param_Fixed_J_and_CVopto/
+
+
+###find_optimal_param_Fixed_J_and_CVopto 12176639
+
+cd find_optimal_param_Fixed_J_and_CVopto
+rm results/*
+rm output/*
+sbatch lancia.sbatch 
+cd ..
+
+
+########### 
+scp -r find_optimal_param_Fixed_gs as974@dcc-login.oit.duke.edu:
+
+scp -r as974@dcc-login.oit.duke.edu:~/find_optimal_param_Fixed_gs/results find_optimal_param_Fixed_gs/
+
+scp -r as974@dcc-login.oit.duke.edu:~/find_optimal_param_Fixed_gs/results_mice.txt find_optimal_param_Fixed_gs/
+scp -r as974@dcc-login.oit.duke.edu:~/find_optimal_param_Fixed_gs/results_monkeys.txt find_optimal_param_Fixed_gs/
+
+
+
+###find_optimal_param_Fixed_gs 12176993
+
+cd find_optimal_param_Fixed_gs
+rm results/*
+rm output/*
+sbatch lancia.sbatch 
+cd ..
+
+
+####
+If you've ever gone in to a directory, for example a mail or log directory, and wanted to clear it of its contents, but faced an error like this:
+/bin/rm: cannot execute [Argument list too long]
+
+We have a solution for you. It's nice and simple, and easy to remember. Paste and run the command in the relevant directory to have it sniff out files in batches of 200 at a time, delete them, then search again until the directory is empty.
+echo * | xargs -n 200 rm
+
