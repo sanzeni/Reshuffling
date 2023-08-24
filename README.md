@@ -2,5 +2,3 @@
 
 By Alessandro Sanzeni*, Agostina Palmigiano*, Tuan H. Nguyen*, Junxiang Luo, Jonathan J. Nassi, John H. Reynolds, Mark H. Histed, Ken D. Miller†, and Nicolas Brunel†
 
-
-test of changes
