@@ -24,8 +24,6 @@ import data_analysis as da
 #import ricciardi_class as ricciardi_class
 #ri=ricciardi_class.Ricciardi()
 
-data=da.Data_MonkeyMouse('both','../data')
-
 def sim_avg_map(params_dict,rX_vec,ri,T,mask_time,RF,tuned,seeds,max_min,return_inputs=False,return_rates=False,input_var=False):
     this_params_dict = params_dict.copy()
     this_params_dict['input_var'] = input_var
