@@ -128,26 +128,6 @@ def get_moments_of_r_sim(net,ri,T,mask_time,L,RF,tuned,return_activity=True,max_
         else:
             return moments_of_r_sim, r_convergence, r_pippo
 
-def get_moments_of_r_sim_opto_switch(net,ri,T,optoT,L,RF,tuned,max_min=7.5):
-    if tuned=='yes':
-        ori_idx=net.get_oriented_neurons(delta_ori=22.5)
-    elif tuned=='all':
-        ori_idx=np.arange(net.N)
-
-    if RF=='in':
-        rf_idx=net.get_centered_neurons(stim_size=0.6)
-    elif RF=='all':
-        rf_idx=np.arange(net.N)
-
-    tune_idx=np.intersect1d(ori_idx,rf_idx)
-
-    DYNAS=np.nan*np.ones((net.N,len(T)))
- 
-    DYNAS[:,:],opto_timeout=\
-        high_dimensional_dynamics_opto_switch(ri,T,optoT,L,net.M,net.H,net.LAM,net.allE,net.allI,max_min);
-        
-    return DYNAS
-
 # def high_dimensional_dynamics(net,ri,T,L):
 #     # This function compute the dynamics of the rate model
 #     def system_RK45(t,R):
@@ -224,43 +204,4 @@ def high_dimensional_dynamics(ri,T,L,M,H,LAM,Einds,Iinds,max_min=7.5,mult_tau=Tr
     MU[Einds]=ri.tau_E*MU[Einds]
     MU[Iinds]=ri.tau_I*MU[Iinds]
     return RATES,MU,timeout
-
-def high_dimensional_dynamics_opto_switch(ri,T,optoT,L,M,H,LAM,Einds,Iinds,max_min=7.5):
-    F=np.zeros(np.shape(H))
-    start = time.process_time()
-    max_time = max_min*60
-    timeout = False
-
-    # This function computes the dynamics of the rate model
-    def system_RK45(t,R):
-        MU=np.matmul(M,R)+H
-        MU[Einds]=ri.tau_E*MU[Einds]
-        MU[Iinds]=ri.tau_I*MU[Iinds]
-        if t > optoT:
-            MU=MU+LAM*L
-        # F=np.zeros(np.shape(MU))
-        F[Einds] =(-R[Einds]+ri.phi_int_E(MU[Einds]))/ri.tau_E;
-        F[Iinds] =(-R[Iinds]+ri.phi_int_I(MU[Iinds]))/ri.tau_I;
-        return F
-
-    # This function forces the integration to stop after 15 minutes
-    def time_event(t,R):
-        int_time = (start + max_time) - time.process_time()
-        if int_time < 0: int_time = 0
-        return int_time
-    time_event.terminal = True
-
-    RATES=np.zeros((len(H),len(T)));
-    sol = solve_ivp(system_RK45,[np.min(T),np.max(T)],RATES[:,0], method='RK45', t_eval=T, events=[time_event])
-    if sol.t.size < len(T):
-        print("      Integration stopped after " + str(np.around(T[sol.t.size-1],2)) + "s of simulation time")
-        if time.process_time() - start > max_time:
-            print("            Integration reached time limit")
-            timeout = True
-        RATES[:,0:sol.t.size] = sol.y
-        RATES[:,sol.t.size:] = sol.y[:,-1:]
-    else:
-        RATES=sol.y;
-
-    return RATES,timeout
 
