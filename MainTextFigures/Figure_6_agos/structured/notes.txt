@@ -1,6 +1,0 @@
-You can process them as
-np.loadtxt('./structured_mouse_rates.txt').reshape((7,2,-1))
-np.loadtxt('./structured_monkey_rates.txt').reshape((6,2,-1))
-
-
-structured_[animal]_rates.txt contains the firing rates to be used for Figure 7. You have to reshape the 1D array into shape (#contrasts,2,-1)
