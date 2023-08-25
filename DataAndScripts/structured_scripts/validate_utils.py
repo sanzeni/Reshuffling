@@ -20,7 +20,10 @@ import data_analysis as da
 #import ricciardi_class as ricciardi_class
 #ri=ricciardi_class.Ricciardi()
 
-data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
+try:
+    data=da.Data_MonkeyMouse('both','./../experimental_data')
+except:
+    data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
 
 res_param_idxs_fixed = {
     'seed_con'          : 0,
