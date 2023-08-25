@@ -39,26 +39,20 @@ mpl.rcParams['pdf.fonttype'] = 42
 
 def plot_fitted_data(output_dir,name_fit,all_moments=None):
     ##### Load data
-    monkey_mouse_data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
+    try:
+        data=da.Data_MonkeyMouse('both','./../experimental_data')
+    except:
+        data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
 
     #For this plots the structure needs to be  (contrast x opto x neurons)
-    try:
-        with open(output_dir+'/'+name_fit+'.pkl', 'rb') as handle_loadModel:
-            this_fit=pickle.load(handle_loadModel)
-    except:
-        with open(output_dir+'/'+name_fit+'.pkl', 'rb') as handle_loadModel:
-            this_fit=pickle5.load(handle_loadModel)
+    with open(output_dir+'/'+name_fit+'.pkl', 'rb') as handle_loadModel:
+        this_fit=pickle.load(handle_loadModel)
     try:
         namesims='Simulation_'+name_fit
         print(namesims)
-        try:
-            with open(output_dir+'/'+namesims+'.pkl', 'rb') as handle_loadModel:
-                output_sims=pickle.load(handle_loadModel)
-                print(output_sims.keys())
-        except:
-            with open(output_dir+'/'+namesims+'.pkl', 'rb') as handle_loadModel:
-                output_sims=pickle5.load(handle_loadModel)
-                print(output_sims.keys())
+        with open(output_dir+'/'+namesims+'.pkl', 'rb') as handle_loadModel:
+            output_sims=pickle.load(handle_loadModel)
+            print(output_sims.keys())
         with_sims=True
         nameout=output_dir+'/'+name_fit+'with_sims'
     except:
@@ -78,13 +72,13 @@ def plot_fitted_data(output_dir,name_fit,all_moments=None):
     axs = axs.ravel()
     this_animals=['mouse','monkey']
     
-    for idx in range(len(monkey_mouse_data.this_animals)):
-        dataset=monkey_mouse_data.bootstrap_moments[idx]
-        contrast=monkey_mouse_data.contrast[idx]
-        predictions=this_fit['predictions_'+monkey_mouse_data.this_animals[idx]]
+    for idx in range(len(data.this_animals)):
+        dataset=data.bootstrap_moments[idx]
+        contrast=data.contrast[idx]
+        predictions=this_fit['predictions_'+data.this_animals[idx]]
         if with_sims:
             transposed = (output_sims['predictions_of_r_sim_mouse'].shape[0] == 7)
-            animal_preds=output_sims['predictions_of_r_sim_'+monkey_mouse_data.this_animals[idx]]
+            animal_preds=output_sims['predictions_of_r_sim_'+data.this_animals[idx]]
         for idx_moment in range(6):
             if idx_moment<2:
                 idx_row=0
@@ -136,15 +130,15 @@ def plot_fitted_data(output_dir,name_fit,all_moments=None):
         axs[2*idx_row+idx].axhline(y=0,ls='--',c='k')
 
     if with_sims:
-        for idx in range(len(monkey_mouse_data.this_animals)):
-            contrast=monkey_mouse_data.contrast[idx]
+        for idx in range(len(data.this_animals)):
+            contrast=data.contrast[idx]
             try:
-                animal_balance=output_sims['full_balance_'+monkey_mouse_data.this_animals[idx]]
-                animal_optorat=output_sims['full_opto_ratio_'+monkey_mouse_data.this_animals[idx]]
+                animal_balance=output_sims['full_balance_'+data.this_animals[idx]]
+                animal_optorat=output_sims['full_opto_ratio_'+data.this_animals[idx]]
                 full = True
             except:
-                animal_balance=output_sims['balance_'+monkey_mouse_data.this_animals[idx]]
-                animal_optorat=output_sims['opto_ratio_'+monkey_mouse_data.this_animals[idx]]
+                animal_balance=output_sims['balance_'+data.this_animals[idx]]
+                animal_optorat=output_sims['opto_ratio_'+data.this_animals[idx]]
                 full = False
             for idx_row in range(4,5+1):
                 ccc=colors[idx]
@@ -175,7 +169,10 @@ def plot_fitted_data(output_dir,name_fit,all_moments=None):
 
 def plot_fitted_data_from_dict(output_sims,output_dir,name_fit,all_moments=None):
     ##### Load data
-    monkey_mouse_data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
+    try:
+        data=da.Data_MonkeyMouse('both','./../experimental_data')
+    except:
+        data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
 
     with_sims=False
     nameout=output_dir+'/'+name_fit
@@ -191,10 +188,10 @@ def plot_fitted_data_from_dict(output_sims,output_dir,name_fit,all_moments=None)
 
     transposed = (output_sims['predictions_of_r_sim_mouse'].shape[0] == 7)
     
-    for idx in range(len(monkey_mouse_data.this_animals)):
-        dataset=monkey_mouse_data.bootstrap_moments[idx]
-        contrast=monkey_mouse_data.contrast[idx]
-        predictions=output_sims['predictions_of_r_sim_'+monkey_mouse_data.this_animals[idx]]
+    for idx in range(len(data.this_animals)):
+        dataset=data.bootstrap_moments[idx]
+        contrast=data.contrast[idx]
+        predictions=output_sims['predictions_of_r_sim_'+data.this_animals[idx]]
         for idx_moment in range(6):
             if idx_moment<2:
                 idx_row=0
@@ -243,15 +240,15 @@ def plot_fitted_data_from_dict(output_sims,output_dir,name_fit,all_moments=None)
             axs[2*idx_row+idx].set_ylabel(ylabel)
         axs[2*idx_row+idx].axhline(y=0,ls='--',c='k')
 
-    for idx in range(len(monkey_mouse_data.this_animals)):
-        contrast=monkey_mouse_data.contrast[idx]
+    for idx in range(len(data.this_animals)):
+        contrast=data.contrast[idx]
         try:
-            animal_balance=output_sims['full_balance_'+monkey_mouse_data.this_animals[idx]]
-            animal_optorat=output_sims['full_opto_ratio_'+monkey_mouse_data.this_animals[idx]]
+            animal_balance=output_sims['full_balance_'+data.this_animals[idx]]
+            animal_optorat=output_sims['full_opto_ratio_'+data.this_animals[idx]]
             full = True
         except:
-            animal_balance=output_sims['balance_'+monkey_mouse_data.this_animals[idx]]
-            animal_optorat=output_sims['opto_ratio_'+monkey_mouse_data.this_animals[idx]]
+            animal_balance=output_sims['balance_'+data.this_animals[idx]]
+            animal_optorat=output_sims['opto_ratio_'+data.this_animals[idx]]
             full = False
         for idx_row in range(4,5+1):
             ccc=colors[idx]
@@ -289,7 +286,10 @@ def plot_best_preds_from_validate_param(best_preds,with_contrast=False):
         os.makedirs(output_dir)
         
         
-    data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
+    try:
+        data=da.Data_MonkeyMouse('both','./../experimental_data')
+    except:
+        data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
     dataset = data.bootstrap_moments
     contrast = data.contrast
 
@@ -393,7 +393,10 @@ def plot_best_preds_from_validate_param(best_preds,with_contrast=False):
 
 
 def plot_preds(preds,output_dir,name_end,animal='both',preds_aux=None,plot_delta_r=False):
-    data=da.Data_MonkeyMouse('both','../data',calc_delta_r=plot_delta_r)
+    try:
+        data=da.Data_MonkeyMouse('both','./../experimental_data')
+    except:
+        data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
 
     if animal=='both':
         animal_idxs=[0,1]
@@ -495,7 +498,10 @@ def plot_preds(preds,output_dir,name_end,animal='both',preds_aux=None,plot_delta
 
 
 def plot_preds_with_bal(preds,bals,optrs,output_dir,name_end,animal='both',preds_aux=None,bals_aux=None,optrs_aux=None,plot_delta_r=False):
-    data=da.Data_MonkeyMouse('both','../data',calc_delta_r=plot_delta_r)
+    try:
+        data=da.Data_MonkeyMouse('both','./../experimental_data')
+    except:
+        data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
 
     if animal=='both':
         animal_idxs=[0,1]
@@ -646,7 +652,10 @@ def plot_preds_with_bal(preds,bals,optrs,output_dir,name_end,animal='both',preds
 
 
 def plot_bal(bals,optrs,output_dir,name_end):
-    data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
+    try:
+        data=da.Data_MonkeyMouse('both','./../experimental_data')
+    except:
+        data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
 
     rows=2
     cols=2
