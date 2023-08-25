@@ -36,7 +36,7 @@ mpl.rcParams['pdf.fonttype'] = 42
 
 ########################################################################################################################
 # Output folder
-output_dir='./results'
+output_dir='./perceptron_results'
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
@@ -101,8 +101,8 @@ tuned = 'yes'
 RF = 'in'
 
 start = time.process_time()
-path2results='./../results_new_format_with_GI/'
-path2validate='./../validate_with_GI/'
+path2results='./../simulation_results/'
+path2validate='./../validation_results/'
 # _, jn =su.get_concatenated_results(path2results,'map',tuned,RF)
 jn = 240
 # jn is the last file number that exists, we are going to save the new simulations in there plus the seed number we send
