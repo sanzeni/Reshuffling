@@ -25,7 +25,7 @@ print(cwd)
 try:
     data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data/')
 except:
-    data=da.Data_MonkeyMouse('both','./../../../experimental_data/')
+    data=da.Data_MonkeyMouse('both','./../../DataAndScripts/experimental_data/')
 
 res_param_idxs_fixed = {
     'seed_con'          : 0,
