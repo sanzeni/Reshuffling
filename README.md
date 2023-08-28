@@ -8,4 +8,4 @@ DISCLAIMER: The code here provided will generate simulations that have the eleme
 
 DataAndScripts contains code for generating the unstructure model, the structure model and the dynamical mean field theory as well as the experimental data. These fucntions are called to the notebooks that you can find in the folders 1-MainTextFigures and 2-SuppFigures
 
-![alt text](https://github.com/[username]/[reponame]/blob/[branch]//GraphicalAbstract_low_high_contrast_edited_v5.png?raw=true)
+![alt text](https://github.com/sanzeni/Reshuffling/blob/main//GraphicalAbstract_low_high_contrast_edited_v5.png?raw=true)
