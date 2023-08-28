@@ -35,7 +35,7 @@ mpl.rcParams['pdf.fonttype'] = 42
 
 ##### Load data
 try:
-    data=da.Data_MonkeyMouse('both','./../experimental_data')
+    data=da.Data_MonkeyMouse('both','./../../DataAndScripts/experimental_data')
 except:
     data=da.Data_MonkeyMouse('both','./../../../DataAndScripts/experimental_data')
 
