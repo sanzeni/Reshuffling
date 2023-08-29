@@ -178,7 +178,7 @@ def return_filtered_results(results,filter):
 
 
 def get_concatenated_results(path2results):
-    results_file='results_structless'
+    results_file='results'
     print('Your results files are of the form: ' +results_file)
     file_idxs = []
     for file in os.listdir(path2results):

@@ -8,6 +8,7 @@ from scipy import stats
 from scipy.optimize import curve_fit, minimize, least_squares
 from scipy.special import erf
 from scipy.optimize import fsolve
+from tqdm import tqdm
 
 from scipy.integrate import quad, dblquad,tplquad
 from scipy.stats import multivariate_normal
@@ -119,7 +120,7 @@ def build_function(results):
     # Use optimization in the plot reults file to find best network structure
     mlp_regressor  = MLPRegressor(random_state=123,
                               activation='relu',
-                              hidden_layer_sizes=(100, 150, 50),)
+                              hidden_layer_sizes=(100, 150, 50),max_iter=200)
     mlp_regressor.fit(X_train, Y_train)
 
     Y_preds = mlp_regressor.predict(X_test)
@@ -220,12 +221,12 @@ def fit_model_to_data(dataset,model,nCon,nRep):
         
     sol=np.zeros((nRep,6))
     cost=np.zeros(nRep)
-    for idx_rep in range(nRep):
-        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
+    for idx_rep in tqdm(range(nRep)):
+#        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
         res_2 = least_squares(Residuals, param_0[idx_rep,:],
                           args=(dataset,model,nCon,),
                           bounds=(param_min, param_max))
-        print(res_2.x,res_2.cost)
+#        print(res_2.x,res_2.cost)
         sol[idx_rep,:],cost[idx_rep]=res_2.x,res_2.cost
 
     return sol,cost
@@ -275,12 +276,12 @@ def fit_model_to_data_both_species(DATA_both_species,model,nCon,nRep):
             
     sol=np.zeros((nRep,6))
     cost=np.zeros(nRep)
-    for idx_rep in range(nRep):
-        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
+    for idx_rep in tqdm(range(nRep)):
+#        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
         res_2 = least_squares(Residuals, param_0[idx_rep,:],
                           args=(dataset_both_species,model,nCon_both_species,normalization_both_species),
                           bounds=(param_min, param_max))
-        print(res_2.x,res_2.cost)
+#        print(res_2.x,res_2.cost)
         sol[idx_rep,:],cost[idx_rep]=res_2.x,res_2.cost
 
     return sol,cost
