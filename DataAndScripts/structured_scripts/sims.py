@@ -27,7 +27,7 @@ import sims_utils as su
 #
 ########################################################################################################################
 
-parser = argparse.ArgumentParser(description=('This python script samples parameters for a spatial model, '
+parser = argparse.ArgumentParser(description=('This python script samples parameters for a structured model, '
 	'simulates the network, and saves the statistics of the network.'))
 parser.add_argument('-J',    '--jobnumber',help='job number',type=int,required=True)
 parser.add_argument('-Omap', '--Omap', help=' map or sp',type=str,required=True)

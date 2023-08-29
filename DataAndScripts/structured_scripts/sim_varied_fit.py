@@ -21,8 +21,8 @@ except:
 ri = ric.Ricciardi()
 ri.set_up_nonlinearity()
 
-parser = argparse.ArgumentParser(description=('This python script takes results from sampled spatial model parameters, '
-    'trains a net to interpolate the results, and finds parameters that best fit the experimental results'))
+parser = argparse.ArgumentParser(description=('This python script takes the best fit structured model '
+    'and simulates the network with varied parameters for Supp Figure 5'))
 parser.add_argument('-p', '--panel',    help='which panel to compute',type=str, default='cmb_mous')
 args = vars(parser.parse_args())
 panel = args['panel']

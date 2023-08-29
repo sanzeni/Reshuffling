@@ -58,8 +58,9 @@ print('-------------------------------------------------------------------------
 print('-------------------------------------Loading results files-------------------------------------')
 print('-----------------------------------------------------------------------------------------------')
 print(' ')
-parser = argparse.ArgumentParser(description=('This python script takes results from sampled spatial model parameters, '
-    'trains a net to interpolate the results, and finds parameters that best fit the experimental results'))
+parser = argparse.ArgumentParser(description=('This python script takes simulated optogenetic responses in networks'
+    'that have been validated on multiple orientation maps, and trains a perceptron to predict a mapping '
+    'between network parameters and response statistics to predict a best-fit model.'))
 
 parser.add_argument('-nRep',                '--nRep',               help='number of least_squares fits done per seed', type=int, default=100)
 parser.add_argument('-seedsim',             '--seedsim',            help='seed used for perceptron training and least_squares fitting',type=int, default=0)

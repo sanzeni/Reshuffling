@@ -40,8 +40,9 @@ mpl.rcParams['pdf.fonttype'] = 42
 
 ########################################################################################################################
 # Which_results
-parser = argparse.ArgumentParser(description=('This python script takes results from sampled spatial model parameters, '
-    'trains a net to interpolate the results, and finds parameters that best fit the experimental results'))
+parser = argparse.ArgumentParser(description=('This python script takes results from structured model simulations '
+    'and resimulates the best-fitting networks on multiple orientation maps to validate that they are robust '
+    'across maps'))
 
 
 parser.add_argument('-animal',   '--animal',    help='animal',type=str, default='monkey')
