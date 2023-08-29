@@ -2,7 +2,6 @@
 import sys
 import os
 import argparse
-import functions as fun
 
 import numpy as np
 import gc
