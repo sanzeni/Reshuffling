@@ -1,28 +1,14 @@
-try:
-    import pickle5 as pickle
-except:
-    import pickle
+from numba import jit
+
 import numpy as np
 import scipy
 from scipy.special import erf, erfi
-from scipy.integrate import solve_ivp, quad
+from scipy.integrate import solve_ivp
 from mpmath import fp
-from scipy.interpolate import interp1d,interpn
+from scipy.interpolate import interp1d
 
-def expval(fun,mus,sigs):
-    if np.isscalar(mus):
-        return quad(lambda z: fun(mus+sigs*z)*np.exp(-z**2/2)/np.sqrt(2*np.pi),-8,8)[0]
-    else:
-        return [quad(lambda z: fun(mus[i]+sigs[i]*z)*np.exp(-z**2/2)/np.sqrt(2*np.pi),-8,8)[0]
-                for i in range(len(mus))]
 
-dmu = 1e-3
 
-def d(fun,mu):
-    return (fun(mu+dmu)-fun(mu-dmu))/(2*dmu)
-
-def d2(fun,mu):
-    return (fun(mu+dmu)-2*fun(mu)+fun(mu-dmu))/dmu**2
     
 class Ricciardi(object):
     sr2 = np.sqrt(2)
@@ -137,27 +123,15 @@ class Ricciardi(object):
         F2=(np.exp(min_u**2)*(1+erf(min_u)))
         return tau*np.sqrt(np.pi)*(F1-F2)/self.sigma_t
         
-    def set_up_nonlinearity(self,nameout=None):
-        save_file = False
-        if nameout is not None:
-            try:
-                with open(nameout+'.pkl', 'rb') as handle:
-                    out_dict = pickle.load(handle)
-                self.phi_int_E=out_dict['phi_int_E']
-                self.phi_int_I=out_dict['phi_int_I']
-                print('Loading previously saved nonlinearity')
-                return None
-            except:
-                print('Calculating nonlinearity')
-                save_file = True
-
+    def set_up_nonlinearity(self):
+    
         mu_tab_max=10.0;
-        mu_tab=np.linspace(-mu_tab_max/5,mu_tab_max,int(200000*1.2+1))
+        mu_tab=np.linspace(-mu_tab_max,mu_tab_max,200000)
         mu_tab=np.concatenate(([-10000],mu_tab))
         mu_tab=np.concatenate((mu_tab,[10000]))
 
         phi_tab_E,phi_tab_I=mu_tab*0,mu_tab*0;
-        # phi_der_tab_E,phi_der_tab_I=mu_tab*0,mu_tab*0;
+        phi_der_tab_E,phi_der_tab_I=mu_tab*0,mu_tab*0;
 
         for idx in range(len(phi_tab_E)):
             phi_tab_E[idx]=self.comp_phi_tab(mu_tab[idx],self.tau_E)
@@ -165,208 +139,14 @@ class Ricciardi(object):
 #            phi_der_tab_E[idx]=self.comp_phi_der_tab(mu_tab[idx],self.tau_E)/phi_tab_E[idx]**2
 #            phi_der_tab_I[idx]=self.comp_phi_der_tab(mu_tab[idx],self.tau_I)/phi_tab_I[idx]**2
 
-        self.phi_int_E=interp1d(mu_tab, phi_tab_E, kind='linear', fill_value='extrapolate')
-        self.phi_int_I=interp1d(mu_tab, phi_tab_I, kind='linear', fill_value='extrapolate')
+        self.phi_int_E=interp1d(mu_tab, phi_tab_E, kind='linear')
+        self.phi_int_I=interp1d(mu_tab, phi_tab_I, kind='linear')
+    
+#        self.phi_der_int_E=interp1d(mu_tab, phi_der_tab_E, kind='linear')
+#        self.phi_der_int_I=interp1d(mu_tab, phi_der_tab_I, kind='linear')
 
-        if save_file:
-            out_dict = {'phi_int_E':self.phi_int_E,
-                        'phi_int_I':self.phi_int_I}
-            with open(nameout+'.pkl', 'wb') as handle:
-                pickle.dump(out_dict,handle)
 
-    def set_up_nonlinearity_w_laser(self,LLam,CV_Lam,nameout=None):
-        save_file = False
-        if nameout is not None:
-            try:
-                with open(nameout+'.pkl', 'rb') as handle:
-                    out_dict = pickle.load(handle)
-                self.phiL_int_E=out_dict['phiL_int_E']
-                self.phiL2_int_E=out_dict['phiL2_int_E']
-                print('Loading previously saved nonlinearity with laser')
-                return None
-            except:
-                print('Calculating nonlinearity with laser')
-                save_file = True
-
-        Lvar = np.log(1+CV_Lam**2)
-        Lstd = np.sqrt(Lvar)
-        Lmean = np.log(LLam)-0.5*Lvar
-        
-        mu_tab_max=5.0;
-        mu_tab=np.linspace(-mu_tab_max/5,mu_tab_max,int(10000*1.2+1))
-        mu_tab=np.concatenate(([-1000],mu_tab))
-        mu_tab=np.concatenate((mu_tab,[1000]))
-
-        phiL_tab_E=mu_tab*0
-        phiL2_tab_E=mu_tab*0
-
-        for idx in range(len(phiL_tab_E)):
-            phiL_tab_E[idx]=quad(lambda x: np.exp(-0.5*((np.log(x)-Lmean)/Lstd)**2)/(np.sqrt(2*np.pi)*Lstd*x)*\
-                self.phi_int_E(mu_tab[idx]+x),0,50*LLam)[0]
-            phiL2_tab_E[idx]=quad(lambda x: np.exp(-0.5*((np.log(x)-Lmean)/Lstd)**2)/(np.sqrt(2*np.pi)*Lstd*x)*\
-                self.phi_int_E(mu_tab[idx]+x)**2,0,50*LLam)[0]
-
-        self.phiL_int_E=interp1d(mu_tab, phiL_tab_E, kind='linear', fill_value='extrapolate')
-        self.phiL2_int_E=interp1d(mu_tab, phiL2_tab_E, kind='linear', fill_value='extrapolate')
-
-        if save_file:
-            out_dict = {'phiL_int_E':self.phiL_int_E,
-                        'phiL2_int_E':self.phiL2_int_E}
-            with open(nameout+'.pkl', 'wb') as handle:
-                pickle.dump(out_dict,handle)
-        
-    def set_up_mean_nonlinearity(self,nameout=None):
-        save_file = False
-        if nameout is not None:
-            try:
-                with open(nameout+'.pkl', 'rb') as handle:
-                    out_dict = pickle.load(handle)
-                self.mu_tab=out_dict['mu_tab']
-                self.sig_tab=out_dict['sig_tab']
-                self.M_phi_tab_E=out_dict['M_phi_tab_E']
-                self.M_phi_tab_I=out_dict['M_phi_tab_I']
-                print('Loading previously saved mean nonlinearity')
-
-                def M_phi_int_E(self,mu,sig):
-                    return interpn((self.mu_tab,self.sig_tab), self.M_phi_tab_E, (mu,sig), method='linear', fill_value=None)
-                def M_phi_int_I(self,mu,sig):
-                    return interpn((self.mu_tab,self.sig_tab), self.M_phi_tab_I, (mu,sig), method='linear', fill_value=None)
-                return None
-            except:
-                print('Calculating mean nonlinearity')
-                save_file = True
-
-        mu_tab_max=1.0;
-        mu_tab=np.linspace(-mu_tab_max/5,mu_tab_max,int(1000*1.2+1))
-        mu_tab=np.concatenate(([-1000],mu_tab))
-        mu_tab=np.concatenate((mu_tab,[1000]))
-
-        sig_tab_max=0.1;
-        sig_tab=np.linspace(0,sig_tab_max,int(100+1))
-        sig_tab=np.concatenate((sig_tab,[1]))
-
-        M_phi_tab_E,M_phi_tab_I=mu_tab[:,None]*sig_tab[None,:]*0,mu_tab[:,None]*sig_tab[None,:]*0;
-        # phi_der_tab_E,phi_der_tab_I=mu_tab*0,mu_tab*0;
-
-        for mu_idx in range(len(mu_tab)):
-            for sig_idx in range(len(sig_tab)):
-                M_phi_tab_E[mu_idx,sig_idx]=expval(self.phi_int_E,mu_tab[mu_idx],sig_tab[sig_idx])
-                M_phi_tab_I[mu_idx,sig_idx]=expval(self.phi_int_I,mu_tab[mu_idx],sig_tab[sig_idx])
-
-        self.mu_tab=mu_tab
-        self.sig_tab=sig_tab
-        self.M_phi_tab_E=M_phi_tab_E
-        self.M_phi_tab_I=M_phi_tab_I
-
-        if save_file:
-            out_dict = {'mu_tab':self.mu_tab,
-                        'sig_tab':self.sig_tab,
-                        'M_phi_tab_E':self.M_phi_tab_E,
-                        'M_phi_tab_I':self.M_phi_tab_I}
-            with open(nameout+'.pkl', 'wb') as handle:
-                pickle.dump(out_dict,handle)
-
-    def M_phi_int_E(self,mu,sig):
-        return interpn((self.mu_tab,self.sig_tab), self.M_phi_tab_E, (mu,sig), method='linear', fill_value=None)[0]
-    def M_phi_int_I(self,mu,sig):
-        return interpn((self.mu_tab,self.sig_tab), self.M_phi_tab_I, (mu,sig), method='linear', fill_value=None)[0]
-        
-    def set_up_mean_nonlinearity_w_laser(self,nameout=None):
-        save_file = False
-        if nameout is not None:
-            try:
-                with open(nameout+'.pkl', 'rb') as handle:
-                    out_dict = pickle.load(handle)
-                self.muL_tab=out_dict['muL_tab']
-                self.sigL_tab=out_dict['sigL_tab']
-                self.M_phiL_tab_E=out_dict['M_phiL_tab_E']
-                self.M_phiL2_tab_E=out_dict['M_phiL2_tab_E']
-                print('Loading previously saved mean nonlinearity')
-
-                def M_phi_int_E(self,mu,sig):
-                    return interpn((self.mu_tab,self.sig_tab), self.M_phi_tab_E, (mu,sig), method='linear', fill_value=None)
-                def M_phi_int_I(self,mu,sig):
-                    return interpn((self.mu_tab,self.sig_tab), self.M_phi_tab_I, (mu,sig), method='linear', fill_value=None)
-                return None
-            except:
-                print('Calculating mean nonlinearity')
-                save_file = True
-
-        mu_tab_max=1.0;
-        mu_tab=np.linspace(-mu_tab_max/5,mu_tab_max,int(1000*1.2+1))
-        mu_tab=np.concatenate(([-1000],mu_tab))
-        mu_tab=np.concatenate((mu_tab,[1000]))
-
-        sig_tab_max=0.1;
-        sig_tab=np.linspace(0,sig_tab_max,int(100+1))
-        sig_tab=np.concatenate((sig_tab,[1]))
-
-        M_phiL_tab_E,M_phiL2_tab_E=mu_tab[:,None]*sig_tab[None,:]*0,mu_tab[:,None]*sig_tab[None,:]*0;
-        # phi_der_tab_E,phi_der_tab_I=mu_tab*0,mu_tab*0;
-
-        for mu_idx in range(len(mu_tab)):
-            for sig_idx in range(len(sig_tab)):
-                M_phiL_tab_E[mu_idx,sig_idx]=expval(self.phiL_int_E,mu_tab[mu_idx],sig_tab[sig_idx])
-                M_phiL2_tab_E[mu_idx,sig_idx]=expval(self.phiL2_int_E,mu_tab[mu_idx],sig_tab[sig_idx])
-
-        self.muL_tab=mu_tab
-        self.sigL_tab=sig_tab
-        self.M_phiL_tab_E=M_phiL_tab_E
-        self.M_phiL2_tab_E=M_phiL2_tab_E
-
-        if save_file:
-            out_dict = {'muL_tab':self.mu_tab,
-                        'sigL_tab':self.sig_tab,
-                        'M_phiL_tab_E':self.M_phiL_tab_E,
-                        'M_phiL2_tab_E':self.M_phiL2_tab_E}
-            with open(nameout+'.pkl', 'wb') as handle:
-                pickle.dump(out_dict,handle)
-
-    def M_phiL_int_E(self,mu,sig):
-        return interpn((self.muL_tab,self.sigL_tab), self.M_phiL_tab_E, (mu,sig), method='linear', fill_value=None)[0]
-    def M_phiL2_int_E(self,mu,sig):
-        return interpn((self.muL_tab,self.sigL_tab), self.M_phiL2_tab_E, (mu,sig), method='linear', fill_value=None)[0]
-
-    def phiE(mu):
-        return self.phi_int_E(mu)
-    def phiI(mu):
-        return self.phi_int_I(mu)
-    def phiLE(mu):
-        return self.phiL_int_E(mu)
-
-    def dphiE(mu):
-        return d(self.phiE,mu)
-    def dphiI(mu):
-        return d(self.phiI,mu)
-    def dphiLE(mu):
-        return d(self.phiLE,mu)
-
-    def d2phiE(mu):
-        return d2(self.phiE,mu)
-    def d2phiI(mu):
-        return d2(self.phiI,mu)
-    def d2phiLE(mu):
-        return d2(self.phiLE,mu)
-
-    def phi2E(mu):
-        return self.phi_int_E(mu)**2
-    def phi2I(mu):
-        return self.phi_int_I(mu)**2
-    def phiL2E(mu):
-        return self.phiL2_int_E(mu)
-
-    def dphi2E(mu):
-        return d(self.phi2E,mu)
-    def dphi2I(mu):
-        return d(self.phi2I,mu)
-    def dphiL2E(mu):
-        return d(self.phiL2E,mu)
-
-    def d2phi2E(mu):
-        return d2(self.phi2E,mu)
-    def d2phi2I(mu):
-        return d2(self.phi2I,mu)
-    def d2phiL2E(mu):
-        return d2(self.phiL2E,mu)
+    
+    
     
     

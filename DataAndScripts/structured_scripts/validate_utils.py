@@ -12,7 +12,6 @@ import gc
 
 from scipy.interpolate import interp1d
 
-import pandas as pd
 import network as network
 import time
 import sims_utils as su
