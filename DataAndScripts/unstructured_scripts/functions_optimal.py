@@ -442,61 +442,6 @@ def fit_model_to_data_fixed_gs(g_E,g_I,dataset,model,nCon,nRep,ALL_param_min,ALL
 
     return sol,cost
 
-def fit_model_to_data_fixed_gs(g_E,g_I,dataset,model,nCon,nRep,ALL_param_min,ALL_param_max):
-    # Param should be 
-    # param=[g_E,g_I,np.log10(beta),np.log10(sigma_Lambda_over_Lambda),np.log10(J),np.log10(CV_K)]
-
-    
-    def Residuals(param,dataset,model,nCon,):
-        param_to_use=np.zeros(len(param)+2)
-        param_to_use[2::]=param[:]
-        param_to_use[0]=g_E
-        param_to_use[1]=g_I
-
-        # residual for fixed parameters
-        inputs=fit_inputs_to_data_given_param(dataset,model,param_to_use,nCon)    
-        prediction=model(inputs,param_to_use,nCon,)
-        prediction[np.isnan(prediction)==True]=10**10      
-        if np.min(prediction[6,:])<1:
-            prediction[0:6,:]=10**10
-        Residuals=(prediction[0:6,:]-dataset[:,:,0])/dataset[:,:,1]
-        
-        return Residuals.ravel()
-    
-    # sim_g_E,sim_g_I,sim_beta,sim_CV_K,
-    
-    #param_min=np.asarray([3,2,-1,np.log10(3*10**(0*3-4)),-1,-5])
-    #param_max=np.asarray([10,10,1,np.log10(3*10**(1*3-4)),1,-2.4])
-    param_min=ALL_param_min[2::]
-    param_max=ALL_param_max[2::]
-    
-    #g_E=np.random.rand(nRep)*7+3
-    #g_I=np.random.rand(nRep)*(g_E-2.5)+2
-    beta=10**(np.random.rand(nRep)*1-1)
-    CV_K=3*10**(np.random.rand()*3-4)
-    sigma_Lambda_over_Lambda=10**(np.random.rand(nRep)*2-1)
-    J=10**(np.random.rand(nRep)*2-5)
-    
-    param_0=np.zeros((nRep,6-2))
-    #param_0[:,0]=g_E
-    #param_0[:,1]=g_I
-    param_0[:,0]=np.log10(beta)
-    param_0[:,1]=np.log10(CV_K)
-    param_0[:,2]=np.log10(sigma_Lambda_over_Lambda)
-    param_0[:,3]=np.log10(J)
-        
-    sol=np.zeros((nRep,6-2))
-    cost=np.zeros(nRep)
-    for idx_rep in range(nRep):
-        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
-        res_2 = least_squares(Residuals, param_0[idx_rep,:],
-                          args=(dataset,model,nCon,),
-                          bounds=(param_min, param_max))
-        print(res_2.x,res_2.cost)
-        sol[idx_rep,:],cost[idx_rep]=res_2.x,res_2.cost
-
-    return sol,cost
-
 def fit_model_to_data_both_species_fixed_gs(g_E,g_I,DATA_both_species,model,nCon,nRep,param_min,param_max):
     # Param should be 
     # param=[g_E,g_I,np.log10(beta),np.log10(sigma_Lambda_over_Lambda),np.log10(J),np.log10(CV_K)]
