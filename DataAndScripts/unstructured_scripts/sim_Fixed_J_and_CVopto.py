@@ -20,7 +20,6 @@ import pandas as pd
 __author__ = 'sandro'
 parser = argparse.ArgumentParser(description='This is a demo script by Sandro.')
 parser.add_argument('-p','--params',help='Filename for results', required=True)
-parser.add_argument('-r','--results',help='Filename for results', required=True)
 parser.add_argument('-J', '--jobnumber', help='job number', required=False)
 args = parser.parse_args()
 
@@ -57,35 +56,73 @@ data_mice=np.loadtxt('Mice_with_trials.txt');
 data_monkeys=np.loadtxt('Monkeys_with_trials.txt');
 data_both_species=[data_mice,data_monkeys]
 
-dataset,Con,nCon=fun.build_dataset(data_both_species[idx_species])
+if idx_species < 2:
+    dataset,Con,nCon=fun.build_dataset(data_both_species[idx_species])
 
+    print('fit simulations to data')
+    sol,cost=fun.fit_model_to_data_fixed_CVopto_and_log10_J(log10_CVopto,log10_J,dataset,Predictor_data,nCon,nRep,param_min,param_max)
 
-print('fit simulations to data')
-sol,cost=fun.fit_model_to_data_fixed_CVopto_and_log10_J(log10_CVopto,log10_J,dataset,Predictor_data,nCon,nRep,param_min,param_max)
+    idx_best=np.argmin(cost)
+    best_param=sol[idx_best,:]
+    best_cost=cost[idx_best]
+    best_param=np.concatenate((best_param,[log10_CVopto,log10_J]))
+    best_inputs=fun.fit_inputs_to_data_given_param(dataset,Predictor_data,best_param,nCon)
 
-idx_best=np.argmin(cost)
-best_param=sol[idx_best,:]
-best_cost=cost[idx_best]
-best_param=np.concatenate((best_param,[log10_CVopto,log10_J]))
-best_inputs=fun.fit_inputs_to_data_given_param(dataset,Predictor_data,best_param,nCon)
+    print(best_param,best_inputs,best_cost)
 
-print(best_param,best_inputs,best_cost)
+    print('Saving results')
+    # simulations param+mean results+ meaurements of rate convergence
 
-print('Saving results')
-# simulations param+mean results+ meaurements of rate convergence
+    results=np.zeros((1,len(best_param)
+                      +len(best_inputs)
+                     +1))
 
-results=np.zeros((1,len(best_param)
-                  +len(best_inputs)
-                 +1))
+    results[0,0:len(best_param)]=best_param[:]
+    results[0,len(best_param):(len(best_param)+len(best_inputs))]=best_inputs[:]
+    results[0,(len(best_param)+len(best_inputs))]=best_cost
 
-results[0,0:len(best_param)]=best_param[:]
-results[0,len(best_param):(len(best_param)+len(best_inputs))]=best_inputs[:]
-results[0,(len(best_param)+len(best_inputs))]=best_cost
+    # Clean file to print results
+    f_handle = open('perceptron_results/results_Fixed_J_and_CVopto_'+['mice','monkeys'][idx_species]+'.txt','w')
+    np.savetxt(f_handle,results,fmt='%.6f', delimiter='\t')
+    f_handle.close()
+else:
+    dataset_mouse,Con_mouse,nCon_mouse=fun.build_dataset(data_both_species[0])
+    dataset_monkey,Con_monkey,nCon_monkey=fun.build_dataset(data_both_species[1])
+    dataset_both_species=[dataset_mouse,dataset_monkey]
+    Con_both_species=[Con_mouse,Con_monkey]
+    nCon_both_species=[nCon_mouse,nCon_monkey]
+    normalization_both_species=[1,1]
+    DATA_both_species=[dataset_both_species,Con_both_species,nCon_both_species,normalization_both_species]
 
-# Clean file to print results
-f_handle = open('results/'+args.results,'w')
-np.savetxt(f_handle,results,fmt='%.6f', delimiter='\t')
-f_handle.close()
+    print('fit simulations to data')
+    sol,cost=fun.fit_model_to_data_both_species_fixed_CVopto_and_log10_J(log10_CVopto,log10_J,DATA_both_species,Predictor_data,nCon,nRep,param_min,param_max)
+
+    idx_best=np.argmin(cost)
+    best_param=sol[idx_best,:]
+    best_cost=cost[idx_best]
+    best_param=np.concatenate((best_param,[log10_CVopto,log10_J]))
+    best_inputs_mouse=fun.fit_inputs_to_data_given_param(dataset_mouse,Predictor_data,best_param,nCon)
+    best_inputs_monkey=fun.fit_inputs_to_data_given_param(dataset_monkey,Predictor_data,best_param,nCon)
+
+    print(best_param,best_inputs_mouse,best_inputs_monkey,best_cost)
+
+    print('Saving results')
+    # simulations param+mean results+ meaurements of rate convergence
+
+    results=np.zeros((1,len(best_param)
+                      +len(best_inputs_mouse)
+                      +len(best_inputs_monkey)
+                     +1))
+
+    results[0,0:len(best_param)]=best_param[:]
+    results[0,len(best_param):(len(best_param)+len(best_inputs_mouse))]=best_inputs_mouse[:]
+    results[0,(len(best_param)+len(best_inputs_mouse)):(len(best_param)+len(best_inputs_mouse)+len(best_inputs_monkey))]=best_inputs_monkey[:]
+    results[0,(len(best_param)+len(best_inputs_mouse)+len(best_inputs_monkey))]=best_cost
+
+    # Clean file to print results
+    f_handle = open('perceptron_results/results_Fixed_J_and_CVopto_'+'both_species'+'.txt','w')
+    np.savetxt(f_handle,results,fmt='%.6f', delimiter='\t')
+    f_handle.close()
 
 print('Done')
 

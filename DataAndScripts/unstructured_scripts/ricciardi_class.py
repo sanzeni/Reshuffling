@@ -1,5 +1,3 @@
-from numba import jit
-
 import numpy as np
 import scipy
 from scipy.special import erf, erfi
