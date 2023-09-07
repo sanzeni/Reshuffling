@@ -26,7 +26,7 @@ args = parser.parse_args()
 
 
 print('Loading params file')
-pdf = pd.read_csv('simulation_param.txt',delim_whitespace=True) #header=None
+pdf = pd.read_csv('simulation_param_Fixed_gs.txt',delim_whitespace=True) #header=None
 print(args)
 jn = int(args.jobnumber)
 
