@@ -8,7 +8,6 @@ from scipy import stats
 from scipy.optimize import curve_fit, minimize, least_squares
 from scipy.special import erf
 from scipy.optimize import fsolve
-from tqdm import tqdm
 
 from scipy.integrate import quad, dblquad,tplquad
 from scipy.stats import multivariate_normal
@@ -21,6 +20,9 @@ import sklearn
 from sklearn.model_selection import GridSearchCV
 import itertools
 import warnings
+
+import pickle
+
 
 warnings.filterwarnings('ignore')
 
@@ -83,57 +85,24 @@ def build_dataset(data):
 
     return Moments,Con,len(Con)
 
-def build_function(results):
-    # I follow this tutorial https://coderzcolumn.com/tutorials/machine-learning/scikit-learn-sklearn-neural-network
-    sim_param_all=results[:,0:15]
-    moments_of_r_sim_all=results[:,15:20]
-    sim_convergence_all=results[:,20:24]
-    sim_decay_all=results[:,26]/results[:,27]
+def build_function():
+    with open('scaler.pkl', 'rb') as f:
+        scaler = pickle.load(f)
 
-    sim_g_E=(sim_param_all[:,2])
-    sim_g_I=(sim_param_all[:,3])
-    sim_beta=(sim_param_all[:,4])
-    sim_CV_K=(sim_param_all[:,7])
-    sim_sigma_Lambda_over_Lambda=(sim_param_all[:,10])
-    sim_J=(sim_param_all[:,11])
-    sim_r_X=(sim_param_all[:,12])
-    sim_ell=(sim_param_all[:,13])
+    with open('model.pkl', 'rb') as f:
+        mlp_regressor = pickle.load(f)
+        
+    with open('chaos_model.pkl', 'rb') as f:
+        mlp_regressor_chaos = pickle.load(f)
 
-    
-    scaler = StandardScaler()  
-
-    X=np.vstack((sim_g_E,sim_g_I,sim_beta,sim_CV_K,sim_sigma_Lambda_over_Lambda,
-                 sim_J,sim_r_X,sim_ell)).T
-    X[:,2::]=np.log10(X[:,2::])
-
-    Y=np.zeros(np.shape(moments_of_r_sim_all))
-    Y[:,:]=moments_of_r_sim_all[:,:]
-    Y[:,4]=np.sign(Y[:,4])*np.sqrt(np.abs(Y[:,4]))
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, train_size=0.80, test_size=0.20, random_state=123)
-
-    # center training dataset
-    scaler.fit(X_train)  
-    X_train = scaler.transform(X_train)  
-    # apply same transformation to test data
-    X_test = scaler.transform(X_test)
-    
-    # Use optimization in the plot reults file to find best network structure
-    mlp_regressor  = MLPRegressor(random_state=123,
-                              activation='relu',
-                              hidden_layer_sizes=(100, 150, 50),max_iter=200)
-    mlp_regressor.fit(X_train, Y_train)
-
-    Y_preds = mlp_regressor.predict(X_test)
-
-    #print(Y_preds[:5])
-    #print(Y_test[:5])
-
-    print('Test R^2 Score : %.3f'%mlp_regressor.score(X_test, Y_test)) ## Score method also evaluates accuracy for classification models.
-    print('Training R^2 Score : %.3f'%mlp_regressor.score(X_train, Y_train))
-    
     def Predictor_sim(X_test):
         X_test_scaled = scaler.transform(X_test)
         Y_test=mlp_regressor.predict(X_test_scaled)
+        return Y_test
+    
+    def Predictor_sim_chaos(X_test):
+        X_test_scaled = scaler.transform(X_test)
+        Y_test=mlp_regressor_chaos.predict(X_test_scaled)
         return Y_test
     
     def Predictor_data(inputs,param,nCon,):
@@ -148,7 +117,8 @@ def build_function(results):
         X_test[:,7]=log10_ell
 
         Y_test=Predictor_sim(X_test)
-        prediction=np.zeros((6,nCon))
+        Y_test_chaos=Predictor_sim_chaos(X_test)
+        prediction=np.zeros((7,nCon))
 
         mean_Base=Y_test[:,0]
         mean_Delta=Y_test[:,1]
@@ -162,17 +132,23 @@ def build_function(results):
         prediction[3,:]=np.sqrt(std_Base**2+std_Delta**2+2*cov_Base_Delta)
         prediction[4,:]=std_Delta
         prediction[5,:]=cov_Base_Delta/std_Delta**2
+
+        prediction[6,:]=Y_test_chaos
+
         return prediction
 
     return Predictor_sim,Predictor_data
-    
+ 
 
 def fit_inputs_to_data_given_param(dataset,model,param,nCon):
     def Residuals_FixedNet(inputs,dataset,model,param,nCon,):
         # residual for fixed parameters
         prediction=model(inputs,param,nCon,)
         prediction[np.isnan(prediction)==True]=10**10
-        Residuals=(prediction-dataset[:,:,0])/dataset[:,:,1]
+        if np.min(prediction[6,:])<1:
+            prediction[0:6,:]=10**10
+        Residuals=(prediction[0:6,:]-dataset[:,:,0])/dataset[:,:,1]
+        
         return Residuals.ravel()
     input_min,input_max=-1,2;
     input_0=np.log10(np.linspace(1,5,nCon+1))
@@ -185,7 +161,7 @@ def fit_inputs_to_data_given_param(dataset,model,param,nCon):
     return inputs
 
 
-def fit_model_to_data(dataset,model,nCon,nRep):
+def fit_model_to_data(dataset,model,nCon,nRep,param_min,param_max):
     # Param should be 
     # param=[g_E,g_I,np.log10(beta),np.log10(sigma_Lambda_over_Lambda),np.log10(J),np.log10(CV_K)]
 
@@ -195,14 +171,15 @@ def fit_model_to_data(dataset,model,nCon,nRep):
         inputs=fit_inputs_to_data_given_param(dataset,model,param,nCon)    
         prediction=model(inputs,param,nCon,)
         prediction[np.isnan(prediction)==True]=10**10      
-        Residuals=(prediction-dataset[:,:,0])/dataset[:,:,1]
+        if np.min(prediction[6,:])<1:
+            prediction[0:6,:]=10**10
+        Residuals=(prediction[0:6,:]-dataset[:,:,0])/dataset[:,:,1]
         
         return Residuals.ravel()
     
-    # sim_g_E,sim_g_I,sim_beta,sim_CV_K,
+    #sim_g_E,sim_g_I,sim_beta,sim_CV_K,
     
-    param_min=np.asarray([3,2,-1,np.log10(3*10**(0*3-4)),-1,-5])
-    param_max=np.asarray([10,10,1,np.log10(3*10**(1*3-4)),1,-2.4])
+
     
     g_E=np.random.rand(nRep)*7+3
     g_I=np.random.rand(nRep)*(g_E-2.5)+2
@@ -221,17 +198,21 @@ def fit_model_to_data(dataset,model,nCon,nRep):
         
     sol=np.zeros((nRep,6))
     cost=np.zeros(nRep)
-    for idx_rep in tqdm(range(nRep)):
-#        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
+    for idx_rep in range(nRep):
+        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
         res_2 = least_squares(Residuals, param_0[idx_rep,:],
                           args=(dataset,model,nCon,),
                           bounds=(param_min, param_max))
-#        print(res_2.x,res_2.cost)
+        
+      
+        res_inputs=fit_inputs_to_data_given_param(dataset,model,res_2.x,nCon)
+        print(res_2.cost)
+        print(repr(res_2.x),repr(res_inputs))
         sol[idx_rep,:],cost[idx_rep]=res_2.x,res_2.cost
 
     return sol,cost
 
-def fit_model_to_data_both_species(DATA_both_species,model,nCon,nRep):
+def fit_model_to_data_both_species(DATA_both_species,model,nCon,nRep,param_min,param_max):
     # Param should be 
     # param=[g_E,g_I,np.log10(beta),np.log10(sigma_Lambda_over_Lambda_0),np.log10(sigma_Lambda_over_Lambda_1),np.log10(J)]
     
@@ -251,13 +232,13 @@ def fit_model_to_data_both_species(DATA_both_species,model,nCon,nRep):
             
             inputs=fit_inputs_to_data_given_param(dataset,model,param,nCon)        
             prediction=model(inputs,param,nCon,)
-            prediction[np.isnan(prediction)==True]=10**10      
-            Residuals=(prediction-dataset[:,:,0])/dataset[:,:,1]/normalization
+            prediction[np.isnan(prediction)==True]=10**10   
+            if np.min(prediction[6,:])<1:
+                prediction[0:6,:]=10**10
+            Residuals=(prediction[0:6,:]-dataset[:,:,0])/dataset[:,:,1]/normalization
             Residuals_both_species=Residuals_both_species+[Residuals.ravel()]
         return np.concatenate((Residuals_both_species[0],Residuals_both_species[1]))
     
-    param_min=np.asarray([3,2,-1,np.log10(3*10**(0*3-4)),-1,-5])
-    param_max=np.asarray([10,10,1,np.log10(3*10**(1*3-4)),1,-2.4])
     
     g_E=np.random.rand(nRep)*7+3
     g_I=np.random.rand(nRep)*(g_E-2.5)+2
@@ -276,13 +257,177 @@ def fit_model_to_data_both_species(DATA_both_species,model,nCon,nRep):
             
     sol=np.zeros((nRep,6))
     cost=np.zeros(nRep)
-    for idx_rep in tqdm(range(nRep)):
-#        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
+    for idx_rep in range(nRep):
+        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
         res_2 = least_squares(Residuals, param_0[idx_rep,:],
                           args=(dataset_both_species,model,nCon_both_species,normalization_both_species),
                           bounds=(param_min, param_max))
-#        print(res_2.x,res_2.cost)
+        print(res_2.x,res_2.cost)
         sol[idx_rep,:],cost[idx_rep]=res_2.x,res_2.cost
 
     return sol,cost
 
+def fit_model_to_data_fixed_gs(g_E,g_I,dataset,model,nCon,nRep,ALL_param_min,ALL_param_max):
+    # Param should be 
+    # param=[g_E,g_I,np.log10(beta),np.log10(sigma_Lambda_over_Lambda),np.log10(J),np.log10(CV_K)]
+
+    
+    def Residuals(param,dataset,model,nCon,):
+        param_to_use=np.zeros(len(param)+2)
+        param_to_use[2::]=param[:]
+        param_to_use[0]=g_E
+        param_to_use[1]=g_I
+
+        # residual for fixed parameters
+        inputs=fit_inputs_to_data_given_param(dataset,model,param_to_use,nCon)    
+        prediction=model(inputs,param_to_use,nCon,)
+        prediction[np.isnan(prediction)==True]=10**10      
+        if np.min(prediction[6,:])<1:
+            prediction[0:6,:]=10**10
+        Residuals=(prediction[0:6,:]-dataset[:,:,0])/dataset[:,:,1]
+        
+        return Residuals.ravel()
+    
+    # sim_g_E,sim_g_I,sim_beta,sim_CV_K,
+    
+    #param_min=np.asarray([3,2,-1,np.log10(3*10**(0*3-4)),-1,-5])
+    #param_max=np.asarray([10,10,1,np.log10(3*10**(1*3-4)),1,-2.4])
+    param_min=ALL_param_min[2::]
+    param_max=ALL_param_max[2::]
+    
+    #g_E=np.random.rand(nRep)*7+3
+    #g_I=np.random.rand(nRep)*(g_E-2.5)+2
+    beta=10**(np.random.rand(nRep)*1-1)
+    CV_K=3*10**(np.random.rand()*3-4)
+    sigma_Lambda_over_Lambda=10**(np.random.rand(nRep)*2-1)
+    J=10**(np.random.rand(nRep)*2-5)
+    
+    param_0=np.zeros((nRep,6-2))
+    #param_0[:,0]=g_E
+    #param_0[:,1]=g_I
+    param_0[:,0]=np.log10(beta)
+    param_0[:,1]=np.log10(CV_K)
+    param_0[:,2]=np.log10(sigma_Lambda_over_Lambda)
+    param_0[:,3]=np.log10(J)
+        
+    sol=np.zeros((nRep,6-2))
+    cost=np.zeros(nRep)
+    for idx_rep in range(nRep):
+        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
+        res_2 = least_squares(Residuals, param_0[idx_rep,:],
+                          args=(dataset,model,nCon,),
+                          bounds=(param_min, param_max))
+        print(res_2.x,res_2.cost)
+        sol[idx_rep,:],cost[idx_rep]=res_2.x,res_2.cost
+
+    return sol,cost
+
+def fit_model_to_data_fixed_CVopto_and_log10_J(log10_CVopto,log10_J,dataset,model,nCon,nRep,ALL_param_min,ALL_param_max):
+    # Param should be 
+    # param=[g_E,g_I,np.log10(beta),np.log10(sigma_Lambda_over_Lambda),np.log10(J),np.log10(CV_K)]
+
+    
+    def Residuals(param,dataset,model,nCon,):
+        param_to_use=np.zeros(len(param)+2)
+        param_to_use[0:4]=param[:]
+        param_to_use[4]=log10_CVopto
+        param_to_use[5]=log10_J
+
+        # residual for fixed parameters
+        inputs=fit_inputs_to_data_given_param(dataset,model,param_to_use,nCon)    
+        prediction=model(inputs,param_to_use,nCon,)
+        prediction[np.isnan(prediction)==True]=10**10
+        if np.min(prediction[6,:])<1:
+            prediction[0:6,:]=10**10
+        Residuals=(prediction[0:6,:]-dataset[:,:,0])/dataset[:,:,1]
+        
+        return Residuals.ravel()
+    
+    # sim_g_E,sim_g_I,sim_beta,sim_CV_K,
+    
+    #param_min=np.asarray([3,2,-1,np.log10(3*10**(0*3-4)),-1,-5])
+    #param_max=np.asarray([10,10,1,np.log10(3*10**(1*3-4)),1,-2.4])
+    param_min=ALL_param_min[0:4]
+    param_max=ALL_param_max[0:4]
+    
+    g_E=np.random.rand(nRep)*7+3
+    g_I=np.random.rand(nRep)*(g_E-2.5)+2
+    beta=10**(np.random.rand(nRep)*1-1)
+    CV_K=3*10**(np.random.rand()*3-4)
+    #sigma_Lambda_over_Lambda=10**(np.random.rand(nRep)*2-1)
+    #J=10**(np.random.rand(nRep)*2-5)
+    
+    param_0=np.zeros((nRep,6-2))
+    param_0[:,0]=g_E
+    param_0[:,1]=g_I
+    param_0[:,2]=np.log10(beta)
+    param_0[:,3]=np.log10(CV_K)
+    #param_0[:,4]=np.log10(sigma_Lambda_over_Lambda)
+    #param_0[:,5]=np.log10(J)
+        
+    sol=np.zeros((nRep,6-2))
+    cost=np.zeros(nRep)
+    for idx_rep in range(nRep):
+        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
+        res_2 = least_squares(Residuals, param_0[idx_rep,:],
+                          args=(dataset,model,nCon,),
+                          bounds=(param_min, param_max))
+        print(res_2.x,res_2.cost)
+        sol[idx_rep,:],cost[idx_rep]=res_2.x,res_2.cost
+
+    return sol,cost
+
+def fit_model_to_data_fixed_gs(g_E,g_I,dataset,model,nCon,nRep,ALL_param_min,ALL_param_max):
+    # Param should be 
+    # param=[g_E,g_I,np.log10(beta),np.log10(sigma_Lambda_over_Lambda),np.log10(J),np.log10(CV_K)]
+
+    
+    def Residuals(param,dataset,model,nCon,):
+        param_to_use=np.zeros(len(param)+2)
+        param_to_use[2::]=param[:]
+        param_to_use[0]=g_E
+        param_to_use[1]=g_I
+
+        # residual for fixed parameters
+        inputs=fit_inputs_to_data_given_param(dataset,model,param_to_use,nCon)    
+        prediction=model(inputs,param_to_use,nCon,)
+        prediction[np.isnan(prediction)==True]=10**10      
+        if np.min(prediction[6,:])<1:
+            prediction[0:6,:]=10**10
+        Residuals=(prediction[0:6,:]-dataset[:,:,0])/dataset[:,:,1]
+        
+        return Residuals.ravel()
+    
+    # sim_g_E,sim_g_I,sim_beta,sim_CV_K,
+    
+    #param_min=np.asarray([3,2,-1,np.log10(3*10**(0*3-4)),-1,-5])
+    #param_max=np.asarray([10,10,1,np.log10(3*10**(1*3-4)),1,-2.4])
+    param_min=ALL_param_min[2::]
+    param_max=ALL_param_max[2::]
+    
+    #g_E=np.random.rand(nRep)*7+3
+    #g_I=np.random.rand(nRep)*(g_E-2.5)+2
+    beta=10**(np.random.rand(nRep)*1-1)
+    CV_K=3*10**(np.random.rand()*3-4)
+    sigma_Lambda_over_Lambda=10**(np.random.rand(nRep)*2-1)
+    J=10**(np.random.rand(nRep)*2-5)
+    
+    param_0=np.zeros((nRep,6-2))
+    #param_0[:,0]=g_E
+    #param_0[:,1]=g_I
+    param_0[:,0]=np.log10(beta)
+    param_0[:,1]=np.log10(CV_K)
+    param_0[:,2]=np.log10(sigma_Lambda_over_Lambda)
+    param_0[:,3]=np.log10(J)
+        
+    sol=np.zeros((nRep,6-2))
+    cost=np.zeros(nRep)
+    for idx_rep in range(nRep):
+        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
+        res_2 = least_squares(Residuals, param_0[idx_rep,:],
+                          args=(dataset,model,nCon,),
+                          bounds=(param_min, param_max))
+        print(res_2.x,res_2.cost)
+        sol[idx_rep,:],cost[idx_rep]=res_2.x,res_2.cost
+
+    return sol,cost
