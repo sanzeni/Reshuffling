@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.integrate as integrate
 import scipy
+from tqdm import tqdm
 import matplotlib.cm as cm
 from scipy.optimize import curve_fit
 from scipy.optimize import root
@@ -28,7 +29,7 @@ warnings.filterwarnings('ignore')
 
 np.set_printoptions(precision=2)
 
-
+gamma=0.25
 
 # Build dataset given the specie: 
 #compute moments of response and put them in a vector of length 5*Con
@@ -165,6 +166,10 @@ def fit_model_to_data(dataset,model,nCon,nRep,param_min,param_max):
     # Param should be 
     # param=[g_E,g_I,np.log10(beta),np.log10(sigma_Lambda_over_Lambda),np.log10(J),np.log10(CV_K)]
 
+    if param_min is None:
+        param_min=np.asarray([3,2,-1,np.log10(3*10**(0*3-4)),-1,-5])
+    if param_max is None:
+        param_max=np.asarray([10,10,1,np.log10(3*10**(1*3-4)),1,-2.4])
     
     def Residuals(param,dataset,model,nCon,):
         # residual for fixed parameters
@@ -198,16 +203,16 @@ def fit_model_to_data(dataset,model,nCon,nRep,param_min,param_max):
         
     sol=np.zeros((nRep,6))
     cost=np.zeros(nRep)
-    for idx_rep in range(nRep):
-        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
+    for idx_rep in tqdm(range(nRep)):
+        #print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
         res_2 = least_squares(Residuals, param_0[idx_rep,:],
                           args=(dataset,model,nCon,),
                           bounds=(param_min, param_max))
         
       
         res_inputs=fit_inputs_to_data_given_param(dataset,model,res_2.x,nCon)
-        print(res_2.cost)
-        print(repr(res_2.x),repr(res_inputs))
+        #print(res_2.cost)
+        #print(repr(res_2.x),repr(res_inputs))
         sol[idx_rep,:],cost[idx_rep]=res_2.x,res_2.cost
 
     return sol,cost
@@ -215,6 +220,12 @@ def fit_model_to_data(dataset,model,nCon,nRep,param_min,param_max):
 def fit_model_to_data_both_species(DATA_both_species,model,nCon,nRep,param_min,param_max):
     # Param should be 
     # param=[g_E,g_I,np.log10(beta),np.log10(sigma_Lambda_over_Lambda_0),np.log10(sigma_Lambda_over_Lambda_1),np.log10(J)]
+    
+    if param_min is None:
+        param_min=np.asarray([3,2,-1,np.log10(3*10**(0*3-4)),-1,-5])
+    if param_max is None:
+        param_max=np.asarray([10,10,1,np.log10(3*10**(1*3-4)),1,-2.4])
+    
     
     dataset_both_species=DATA_both_species[0]
     Con_both_species=DATA_both_species[1]
@@ -257,12 +268,12 @@ def fit_model_to_data_both_species(DATA_both_species,model,nCon,nRep,param_min,p
             
     sol=np.zeros((nRep,6))
     cost=np.zeros(nRep)
-    for idx_rep in range(nRep):
-        print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
+    for idx_rep in tqdm(range(nRep)):
+        #print('rep=',idx_rep,' param init=',param_0[idx_rep,:])
         res_2 = least_squares(Residuals, param_0[idx_rep,:],
                           args=(dataset_both_species,model,nCon_both_species,normalization_both_species),
                           bounds=(param_min, param_max))
-        print(res_2.x,res_2.cost)
+        #print(res_2.x,res_2.cost)
         sol[idx_rep,:],cost[idx_rep]=res_2.x,res_2.cost
 
     return sol,cost
